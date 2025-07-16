@@ -1,0 +1,21 @@
+---
+services:
+  service:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    networks:
+      - proxy
+    ports:
+      - '80:80'
+      - '81:81'
+      - '443:443'
+    volumes:
+      - nginx-data:/nginx-data
+      - nginx-letsencrypt:/etc/letsencrypt
+networks:
+  proxy:
+    external: true
+volumes:
+  nginx-data:
+  nginx-letsencrypt:
