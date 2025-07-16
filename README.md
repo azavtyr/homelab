@@ -24,6 +24,8 @@ Welcome to my homelab project! This project documents my ongoing journey into bu
 > [!NOTE]
 > This setup is just a starting point. The current hardware is far from ideal for a full homelab environment, and I plan to replace or upgrade components as the project evolves.
 
+![Proxmox Overview](proxmox-overview.png)
+
 ## Current Setup & Self-Hosted Services
 
 | Name                | Description                                      |
