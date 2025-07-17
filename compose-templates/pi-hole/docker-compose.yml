@@ -1,0 +1,34 @@
+---
+services:
+  pihole:
+    container_name: pihole
+    image: mpgirro/pihole-unbound
+    hostname: pihole
+    environment:
+      - TZ=${TZ}
+      - FTLCONF_webserver_api_password=${FTLCONF_webserver_api_password}
+      - FTLCONF_dns_upstreams=127.0.0.1#5335
+      - FTLCONF_dns_dnssec="true"
+      - FTLCONF_dns_listeningMode=single
+    networks:
+      proxy:
+      pihole_network:
+        ipv4_address: '192.168.0.50'
+    volumes:
+      - config_pihole:/etc/pihole
+    restart: unless-stopped
+
+volumes:
+  config_pihole:
+
+networks:
+  proxy:
+    external: true
+  pihole_network:
+    driver: macvlan
+    driver_opts:
+      parent: ens18
+    ipam:
+      config:
+        - subnet: 192.168.0.0/24
+          gateway: 192.168.0.1
