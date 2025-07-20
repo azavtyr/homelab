@@ -1,0 +1,69 @@
+---
+services:
+  freshrss:
+    image: freshrss/freshrss:edge
+    container_name: freshrss
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: 10m
+    volumes:
+      - freshrss-data:/var/www/FreshRSS/data
+    networks:
+      - proxy
+      - db
+
+    environment:
+      TZ: ${TZ}
+      CRON_MIN: '10,30,50'
+      LISTEN: 0.0.0.0:8080
+      TRUSTED_PROXY: 0
+      OIDC_ENABLED: 0
+      FRESHRSS_INSTALL: |-
+        --api-enabled
+        --base-url ${BASE_URL}
+        --db-base ${DB_BASE}
+        --db-host freshrss-db
+        --db-password ${DB_PASSWORD}
+        --db-type pgsql
+        --db-user ${DB_USER}
+        --default-user admin
+        --language en
+      FRESHRSS_USER: |-
+        --api-password ${ADMIN_API_PASSWORD}
+        --email ${ADMIN_EMAIL}
+        --language en
+        --password ${ADMIN_PASSWORD}
+        --user admin
+
+  freshrss-db:
+    image: postgres:17
+    container_name: freshrss-db
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: 10m
+    networks:
+      - db
+    volumes:
+      - freshrss-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_BASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    command:
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - work_mem=32MB
+
+networks:
+  proxy:
+    external: true
+  db:
+    external: true
+
+volumes:
+  freshrss-data:
+  freshrss-db:
