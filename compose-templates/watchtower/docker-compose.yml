@@ -1,0 +1,28 @@
+---
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    networks:
+      - proxy
+    secrets:
+      - token
+    environment:
+      - WATCHTOWER_CLEANUP=true
+        # - WATCHTOWER_DISABLE_CONTAINERS=nginx-proxy-manager
+      - WATCHTOWER_ROLLING_RESTART=true
+      - WATCHTOWER_NOTIFICATIONS=gotify
+      - WATCHTOWER_NOTIFICATION_GOTIFY_URL=${WATCHTOWER_NOTIFICATION_GOTIFY_URL}
+      - WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN=/run/secrets/token
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30
+
+networks:
+  proxy:
+    external: true
+
+secrets:
+  token:
+    file: token
