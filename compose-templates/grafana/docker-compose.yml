@@ -1,0 +1,20 @@
+---
+services:
+  grafana:
+    image: grafana/grafana-enterprise
+    container_name: grafana
+    restart: unless-stopped
+    networks:
+      - proxy
+      - monitor
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-data:
+
+networks:
+  proxy:
+    external: true
+  monitor:
+    external: true
