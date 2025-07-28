@@ -19,7 +19,7 @@ Welcome to my homelab project! This project documents my ongoing journey into bu
 | Component             | Details                          |
 |----------------------|----------------------------------|
 | **Main Server**       | Lenovo ThinkPad T480 (Proxmox)             |
-| **Router**            | TP-Link Archer C6 v2 (flashed with OpenWRT) |
+| **Router and Gateway**            | GL.iNet Flint 2 |
 
 > [!NOTE]
 > This setup is just a starting point. The current hardware is far from ideal for a full homelab environment, and I plan to replace or upgrade components as the project evolves.
@@ -33,5 +33,15 @@ Welcome to my homelab project! This project documents my ongoing journey into bu
 | `OMV-NAS`           | NAS solution using **OpenMediaVault**            |
 | `prod-docker`       | Container host for self-hosted apps              |
 | Nginx Proxy Manager | Reverse proxy with SSL support                   |
+| Portainer           | Web UI for managing Docker containers            |
+| Homepage            | Dashboard with links and service status          |
+| Watchtower          | Auto-update Docker containers with notifications |
+| Gotify              | Self-hosted push notification service            |
+| Gitea               | Lightweight self-hosted Git service              |
+| GitLab              | DevOps platform with CI/CD, and issue tracking   |
+| Grafana             | Dashboard for metrics and monitoring             |
+| InfluxDB            | Time-series database for metrics                 |
+| FreshRSS            | Self-hosted RSS feed reader                      |
+| Vaultwarden         | Self-hosted password manager                     |
 
 This section will expand as new services and tools are added.
