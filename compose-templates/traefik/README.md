@@ -1,152 +1,100 @@
 # Traefik
 
-Reverse proxy with automatic HTTPS via Let's Encrypt. Acts as the single entry point for all services on the VPS.
+Local reverse proxy for homelab services. Routes traffic by hostname so you can access services by name instead of IP:port.
 
-## Prerequisites
+## Setup
 
-- VPS with a public IP address
-- Docker and Docker Compose installed
-- A domain name (e.g. `example.com`) with DNS access
-- Ports **80** and **443** open on the firewall
-
-## 1. Configure DNS
-
-Point your domain to the VPS public IP. You need at minimum:
-
-| Type | Name               | Value            |
-|------|--------------------|------------------|
-| A    | `traefik`          | `<VPS_IP>`       |
-
-This gives you `traefik.example.com` for the dashboard.
-
-For every service you plan to proxy, add an additional A record:
-
-| Type | Name               | Value            |
-|------|--------------------|------------------|
-| A    | `grafana`          | `<VPS_IP>`       |
-| A    | `gitea`            | `<VPS_IP>`       |
-| ...  | ...                | ...              |
-
-Alternatively, use a wildcard record to cover all subdomains at once:
-
-| Type | Name               | Value            |
-|------|--------------------|------------------|
-| A    | `*`                | `<VPS_IP>`       |
-
-> DNS propagation can take a few minutes. Verify with `dig traefik.example.com` before proceeding.
-
-## 2. Open firewall ports
-
-Make sure your VPS firewall allows inbound traffic on ports 80 and 443. For example, with `ufw`:
-
-```bash
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-```
-
-Port 80 is required even though all traffic is redirected to HTTPS — Let's Encrypt uses it for the HTTP challenge.
-
-## 3. Create the `.env` file
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and set the values:
-
-```dotenv
-TRAEFIK_DOMAIN=traefik.example.com
-ACME_EMAIL=admin@example.com
-DASHBOARD_AUTH=admin:$$2y$$05$$...
-```
-
-### Generating `DASHBOARD_AUTH`
-
-Use `htpasswd` to create a bcrypt-hashed password:
-
-```bash
-# Install if needed:
-# Debian/Ubuntu: sudo apt install apache2-utils
-# Alpine:        apk add apache2-utils
-
-htpasswd -nB admin
-```
-
-You will be prompted for a password. The output will look like:
-
-```
-admin:$2y$05$Wz1...
-```
-
-**Important:** before pasting into `.env`, escape every `$` by doubling it to `$$`. Docker Compose treats `$` as variable interpolation. For example:
-
-```
-# htpasswd output:
-admin:$2y$05$abc123
-
-# In .env:
-DASHBOARD_AUTH=admin:$$2y$$05$$abc123
-```
-
-## 4. Start Traefik
+### 1. Start Traefik
 
 ```bash
 docker compose up -d
 ```
 
-Verify it's running:
+Traefik dashboard is available at `http://traefik.home` (or whatever you set in `TRAEFIK_DOMAIN`).
 
-```bash
-docker compose logs -f
-```
+### 2. Connect a service
 
-Look for `Configuration loaded from flags` and no ACME errors. The first certificate request may take a few seconds.
-
-Once ready, open `https://traefik.example.com` in your browser and log in with the credentials you set.
-
-## 5. Connect other services
-
-Traefik creates and owns the `traefik-public` Docker network. Other compose stacks join this network as external and use labels to register routes.
-
-Example for a service running on port 3000:
+Add labels to any compose service to register it with Traefik. Example:
 
 ```yaml
 services:
-  myapp:
-    image: myapp:latest
+  grafana:
+    image: grafana/grafana
     networks:
       - traefik-public
     labels:
       - traefik.enable=true
-      - traefik.http.routers.myapp.rule=Host(`app.example.com`)
-      - traefik.http.routers.myapp.entrypoints=websecure
-      - traefik.http.routers.myapp.tls.certresolver=letsencrypt
-      - traefik.http.services.myapp.loadbalancer.server.port=3000
+      - traefik.http.routers.grafana.rule=Host(`grafana.home`)
+      - traefik.http.services.grafana.loadbalancer.server.port=3000
 
 networks:
   traefik-public:
     external: true
 ```
 
-Key points:
+Change `grafana.home` to any name you want. The `Host()` rule is what Traefik matches on.
 
-- `traefik.enable=true` — required because `exposedbydefault=false`
-- `Host(...)` — must match a DNS record pointing to the VPS
-- `loadbalancer.server.port` — only needed if the container exposes multiple ports or no `EXPOSE` in the image
-- Do **not** publish ports to the host (`ports:`) for proxied services — Traefik routes traffic through the Docker network
+`loadbalancer.server.port` is only needed when the container listens on a non-standard port or exposes multiple ports.
+
+Do **not** publish ports to the host (`ports:`) for proxied services — Traefik routes traffic through the Docker network.
+
+### 3. Configure local DNS
+
+For the browser to know that `grafana.home` points to your server, you need DNS resolution. Pick one:
+
+#### Option A: Pi-hole / AdGuard Home (recommended)
+
+Add DNS records in Pi-hole (Local DNS → DNS Records):
+
+```
+grafana.home    → 192.168.1.50
+gitea.home      → 192.168.1.50
+portainer.home  → 192.168.1.50
+```
+
+All devices on the network will resolve these automatically.
+
+#### Option B: Wildcard with dnsmasq
+
+If your router supports dnsmasq (GL.iNet routers do), add one rule to resolve all `*.home` to the server:
+
+```
+address=/home/192.168.1.50
+```
+
+In GL.iNet admin panel: Network → DNS → Custom DNS Rules, or via SSH in `/etc/dnsmasq.d/`. This way any new `*.home` subdomain works without adding individual records.
+
+#### Option C: /etc/hosts (per device)
+
+On each device, add entries to `/etc/hosts` (Linux/Mac) or `C:\Windows\System32\drivers\etc\hosts` (Windows):
+
+```
+192.168.1.50  grafana.home gitea.home portainer.home
+```
+
+Quick but has to be repeated on every device.
+
+## Example: full service setup
+
+After setup, adding a new service with a custom address is just two lines in its labels:
+
+```yaml
+labels:
+  - traefik.enable=true
+  - traefik.http.routers.myapp.rule=Host(`myapp.home`)
+```
+
+Pick any name — `git.home`, `monitor.home`, `nas.home` — as long as DNS resolves it to the server.
 
 ## Troubleshooting
 
-**Certificate not issued**
-- Verify DNS resolves to the VPS: `dig +short traefik.example.com`
-- Verify port 80 is reachable from outside: `curl -I http://traefik.example.com`
-- Check ACME logs: `docker compose logs traefik | grep acme`
+**Service not showing in dashboard**
+- Check it's on the `traefik-public` network: `docker network inspect traefik-public`
+- Check `traefik.enable=true` label is set
 
-**Dashboard returns 401**
-- Verify `DASHBOARD_AUTH` has `$$` escaping in `.env`
-- Recreate the container after changing `.env`: `docker compose up -d --force-recreate`
+**Browser can't resolve hostname**
+- Verify DNS: `dig grafana.home` or `nslookup grafana.home`
+- If using Pi-hole, make sure the device uses Pi-hole as its DNS server
 
-**Service not appearing in Traefik**
-- Confirm the service is on the `traefik-public` network: `docker network inspect traefik-public`
-- Confirm `traefik.enable=true` label is set
-- Check service logs for startup errors
+**Wrong service responds**
+- Check for duplicate `Host()` rules in the Traefik dashboard at `:8080`
