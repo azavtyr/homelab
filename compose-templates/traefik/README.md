@@ -74,44 +74,51 @@ Set **Proxy status** to **DNS only** (grey cloud). This is simpler but the DNS r
 
 ## Connect a service
 
-Add labels to any Docker Compose service:
+To expose a service through Traefik, add these labels and the `proxy` network to its `docker-compose.yml`:
 
 ```yaml
 services:
-  grafana:
-    image: grafana/grafana
+  myapp:
+    image: myapp/myapp
     networks:
-      - traefik-public
+      - proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.grafana.rule=Host(`grafana.home.example.com`)
-      - traefik.http.routers.grafana.entrypoints=websecure
-      - traefik.http.routers.grafana.tls.certresolver=letsencrypt
-      - traefik.http.services.grafana.loadbalancer.server.port=3000
+      - traefik.http.routers.myapp.rule=Host(`myapp.home.example.com`)
+      - traefik.http.routers.myapp.entrypoints=websecure
+      - traefik.http.routers.myapp.tls.certresolver=letsencrypt
+      - traefik.http.services.myapp.loadbalancer.server.port=8080
 
 networks:
-  traefik-public:
+  proxy:
     external: true
 ```
 
-Key points:
+Replace `myapp` with your service name and `8080` with the port the container listens on.
 
-- Use `websecure` entrypoint (not `web`) for HTTPS
-- Add `tls.certresolver=letsencrypt` to get a certificate
-- `loadbalancer.server.port` is needed when the container listens on a non-standard port
-- Do **not** publish ports to the host — Traefik routes through the Docker network
-- The service must be on the `traefik-public` network
+### Labels explained
 
-## Using environment variables for domains
+Every proxied service needs these 4 labels:
 
-To avoid hardcoding the domain, use a variable in your service's `.env`:
+| Label | What it does |
+|-------|-------------|
+| `traefik.enable=true` | Tells Traefik to pick up this container |
+| `traefik.http.routers.<name>.rule=Host(...)` | Domain name for the service |
+| `traefik.http.routers.<name>.entrypoints=websecure` | Use HTTPS (port 443) |
+| `traefik.http.routers.<name>.tls.certresolver=letsencrypt` | Get a Let's Encrypt certificate |
 
-```yaml
-labels:
-  - traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)
-```
+Optional:
 
-With `DOMAIN=home.example.com` in the service's `.env` file.
+| Label | When needed |
+|-------|------------|
+| `traefik.http.services.<name>.loadbalancer.server.port=PORT` | Container listens on a non-standard port or exposes multiple ports |
+
+### Important
+
+- Replace `<name>` with the same unique name in all labels for a given service (e.g. `grafana`, `gitea`, `vaultwarden`)
+- Do **not** publish ports to the host (`ports:`) — Traefik routes traffic through the Docker network
+- The service **must** be on the `proxy` network
+- The `proxy` network must be declared as `external: true` in the service's compose file
 
 ## Troubleshooting
 
@@ -121,7 +128,7 @@ With `DOMAIN=home.example.com` in the service's `.env` file.
 - Let's Encrypt has [rate limits](https://letsencrypt.org/docs/rate-limits/) — if testing, add `--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/v2/directory` to use the staging server
 
 **Service not showing in dashboard**
-- Check it's on the `traefik-public` network: `docker network inspect traefik-public`
+- Check it's on the `proxy` network: `docker network inspect proxy`
 - Check `traefik.enable=true` label is set
 
 **Browser shows certificate warning**
