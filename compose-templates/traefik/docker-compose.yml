@@ -9,21 +9,37 @@ services:
       - --api.dashboard=true
       - --api.insecure=false
       - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --providers.docker.network=traefik-public
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/etc/traefik/acme.json
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
     ports:
       - 80:80
+      - 443:443
     networks:
       - traefik-public
     labels:
       - traefik.enable=true
-      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DOMAIN}`)
-      - traefik.http.routers.dashboard.entrypoints=web
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.dashboard.entrypoints=websecure
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
       - traefik.http.routers.dashboard.service=api@internal
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme-data:/etc/traefik
 
 networks:
   traefik-public:
     name: traefik-public
+
+volumes:
+  acme-data:
